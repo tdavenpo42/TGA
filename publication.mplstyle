@@ -1,0 +1,55 @@
+# -*- coding: utf-8 -*-
+# publication.mplstyle
+### Lines
+lines.linewidth  : 1
+lines.markersize : 3
+
+### Font
+font.size : 9.0
+font.sans-serif: Arial, DejaVu Sans, Helvetica, Avant Garde, sans-serif
+mathtext.fontset : stix
+
+### Axes
+axes.labelsize : 9
+axes.linewidth : 0.5
+
+### Ticks
+xtick.top            : True   
+xtick.bottom         : True   
+xtick.major.size     : 5
+xtick.minor.size     : 3
+xtick.major.width    : 0.5
+xtick.minor.width    : 0.5
+xtick.direction      : in
+xtick.minor.visible  : True
+xtick.major.top      : True
+xtick.major.bottom   : True
+xtick.minor.top      : True
+xtick.minor.bottom   : True
+xtick.labelsize      : 9
+ytick.left           : True
+ytick.right          : True
+ytick.major.size     : 5 
+ytick.minor.size     : 3   
+ytick.major.width    : 0.5    
+ytick.minor.width    : 0.5
+ytick.direction      : in
+ytick.minor.visible  : True
+ytick.major.top      : True
+ytick.major.bottom   : True
+ytick.minor.top      : True
+ytick.minor.bottom   : True    
+ytick.labelsize      : 9
+
+### Legend
+legend.frameon       : False    
+
+### Figure
+figure.figsize         : 3, 3     
+figure.dpi             : 300  
+figure.subplot.left    : 0.15
+figure.subplot.right   : 0.85 
+figure.subplot.bottom  : 0.15  
+figure.subplot.top     : 0.85  
+figure.subplot.wspace  : 0.2   
+figure.subplot.hspace  : 0.2          
