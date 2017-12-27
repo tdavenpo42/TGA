@@ -35,14 +35,14 @@ def exp_fit(T,a,tau,m_eq):
 # Molar masses of relevant species of species
 M_O = 15.9994; M_MOx = 0. #M_MOx determined from file
 
-#Initialize formatting flags
+# Initialize formatting flags
 format_Netzsch5, format_Netzsch4 = False, False
-#Intialize flags for sample mass presence and sample mass unit type
+# Intialize flags for sample mass presence and sample mass unit type
 sample_mass_mg_flag, mass_given_flag = False, False
 # Initialize flags for mass list unit type
 mass_pct_flag, mass_mg_flag = False, False
-#Initialize flags for handled sample compositions
-known_composition_flag, flag_10Pr, flag_LSM82 = False, False, False
+# Initialize flags for known composition
+known_composition_flag = False
 
 #Initialize lists for TGA data
 temp, time, mass_loss, segment = [],[],[],[]
@@ -67,7 +67,9 @@ savedir = userhome+filename+'_analyzed'
 if not exists(savedir):
     mkdir(savedir)
 
-# Make directory for fitting results
+# Make directory for fitting results - delete previous version if exists.  
+# Otherwise program will add additional fit figures to previous ones instead of
+# overwriting.
 fitdir = savedir + '/' + 'fits'
 if exists(fitdir):
     rmtree(fitdir)
@@ -81,7 +83,7 @@ copyfile(filename+'.txt',savedir+'/'+filename+'.txt')
 # Read in lines of data file
 for line in ptm: 
     
-    # Check for recognized format
+    # Check for recognized formats
     if line.startswith('#FORMAT:NETZSCH5'):
         format_Netzsch5 = True
     if line.startswith('#FORMAT:NETZSCH4'):
@@ -104,11 +106,11 @@ for line in ptm:
             #Check for handled sample compositions and set flags
             if line.split(':')[1].startswith('10Pr'):
                 M_MOx = 140.90765*0.1 + 140.116*0.9 + 15.9994*2
-                flag_10Pr = True; known_composition_flag = True
+                known_composition_flag = True
             
             if line.split(':')[1].startswith('LSM82'):
                 M_MOx = 138.91*0.8 + 87.62*0.2 + 54.938*1 + 15.9994*3
-                flag_LSM82 = True; known_composition_flag = True
+                known_composition_flag = True
             
         # For header lines: extract sample mass
         elif line.startswith('SAMPLE MASS',1):
@@ -117,12 +119,13 @@ for line in ptm:
                 sample_mass_mg_flag = True
                 if mass != 0.: mass_given_flag = True
                 
-        # Check if line is a data list line
+    # Other lines are data list lines
     else:
+        # Ignore empty lines
         if line.strip():
             # Formatting varies based on format version
             if format_Netzsch4 == True:
-                # split line into fields
+                # split line into fields - delimited by whitespace
                 fields = line.split()
        
                 # add fields to data lists
@@ -132,7 +135,7 @@ for line in ptm:
                 segment += [int(fields[3])]
         
             elif format_Netzsch5 == True:
-                # split line into fields
+                # split line into fields - delimited by semicolons
                 fields = line.split(';')
        
                 # add fields to data lists
@@ -413,15 +416,49 @@ for i in range(seg_index.shape[0]):
 ## nonstoichiometry using best guess equilibrium mass values, with 
 ## 95%CI of nonstoichiometry and give prediction for data reliability
 
+#Initialize special exception flags
+int_ref_flag = False
+
 # Handle special exception: ignore isothermal at low temperature after 
 # sequence of high temperatures - was used as a low temp anneal to return
 # sample (mostly) to original state
 if 1450 < eq_vals[-2,0] < 1550 and eq_vals[-1,0] < 850:
     # Preallocate array
     nonstoich_temp = np.zeros((eq_vals.shape[0]-1,3))
+    
+    # Acknowledge special case found
+    print('\n\nLow temperature anneal step ignored.')
+
+# Handle special exception: recognize experiment with internal reference state
+if np.abs(eq_vals[0,0] - eq_vals[-1,0]) < 5:
+    
+    # Acknowledge special case found
+    print('\n\nRecognized internal reference at %.0f \u00b0C.' %(eq_vals[0,0]))
+    
+    # Set special case flag
+    int_ref_flag = True
+    
+    # Determine mass shift to internal reference
+    if eq_vals[0,2] == 1:
+        mass_shift_init = eq_vals[0,1]
+    else:
+        mass_shift_init = eq_vals[0,7]
+    if eq_vals[-1,2] == 1:
+        mass_shift_final = eq_vals[-1,1]
+    else:
+        mass_shift_final = eq_vals[-1,7]
+    mass_shift = (mass_shift_init + mass_shift_final)/2
+    mass = mass + mass_shift
+    
+    # Shift masses
+    eq_vals[:,1] -= mass_shift
+    mass_loss -= mass_shift
+
+    nonstoich_temp = np.zeros((eq_vals.shape[0],3))
 # Regular data handling
 else:
     nonstoich_temp = np.zeros((eq_vals.shape[0],3))
+
 # Initialize list indicating results reliability
 reliable = []
 
@@ -477,7 +514,7 @@ for i in range(nonstoich_temp.shape[0]):
 output = np.column_stack((nonstoich_temp,reliable))
 # Create csv file
 np.savetxt(savedir+'/'+filename+'_output.csv',output,
-           delimiter=',',header='Temperature (C),nonstoichiometry,\
+           delimiter=',',header='Temperature (\u00b0C),nonstoichiometry,\
            nonstoichiometry error,reliable?', fmt='%s')
 
 ## Create figure visualizing raw data
@@ -485,7 +522,10 @@ np.savetxt(savedir+'/'+filename+'_output.csv',output,
 plt.figure()
 # Label axes
 plt.xlabel('time (min)')
-plt.ylabel('mass change (mg)')
+if int_ref_flag == True:
+    plt.ylabel('mass change ($m - m_0$, mg)')
+else:
+    plt.ylabel('mass change (mg)')
 # Plot raw mass curve
 plt.plot(time,mass_loss,'k')
 # Create overlapping plot for temperature data
@@ -514,7 +554,10 @@ remove(savedir+'/'+filename+'_massloss_temp.tiff')
 plt.figure()
 # Label axes
 plt.xlabel('Temperature ($^\circ$C)')
-plt.ylabel('Nonstoichiometry, $\delta$')
+if int_ref_flag == True:
+    plt.ylabel('Nonstoichiometry, $\delta - \delta_0$')
+else:
+    plt.ylabel('Nonstoichiometry, $\delta$')
 # Invert y axis
 plt.gca().invert_yaxis()
 # Plot nonstoichiometry vs temperature with error bars determined from error
