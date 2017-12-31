@@ -49,8 +49,7 @@ temp, time, mass_loss, segment = [],[],[],[]
 ## Read in TGA data file, determine if sample composition and mass are known,
 ## return lists of molecular mass, temp, time, mass_loss, and temp segment 
 
-#filename = input('Input file name without .txt extension: ')
-filename = '130606_10Pr_10pctO2'
+filename = input('Input file name without .txt extension: ')
 ptm = open(filename + '.txt')
 
 # Create the destination directory for data output
