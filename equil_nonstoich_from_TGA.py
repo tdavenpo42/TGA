@@ -13,6 +13,7 @@ from os import mkdir, remove, path
 from os.path import exists, expanduser
 from shutil import copyfile, rmtree
 from platform import system
+from re import split
 import numpy as np
 from math import floor
 import matplotlib.pyplot as plt
@@ -35,8 +36,6 @@ def exp_fit(T,a,tau,m_eq):
 # Molar masses of relevant species of species
 M_O = 15.9994; M_MOx = 0. #M_MOx determined from file
 
-# Initialize formatting flags
-format_Netzsch5, format_Netzsch4 = False, False
 # Intialize flags for sample mass presence and sample mass unit type
 sample_mass_mg_flag, mass_given_flag = False, False
 # Initialize flags for mass list unit type
@@ -50,11 +49,13 @@ temp, time, mass_loss, segment = [],[],[],[]
 ## Read in TGA data file, determine if sample composition and mass are known,
 ## return lists of molecular mass, temp, time, mass_loss, and temp segment 
 
-filename = input('Input file name without .txt extension: ')
+#filename = input('Input file name without .txt extension: ')
+filename = '130606_10Pr_10pctO2'
 ptm = open(filename + '.txt')
 
 # Create the destination directory for data output
 userhome = expanduser('~')
+
 # Path to Desktop on Windows
 if system() == 'Windows':
     userhome = userhome.replace('\\', '/') + '/Desktop/'
@@ -82,67 +83,54 @@ copyfile(filename+'.txt',savedir+'/'+filename+'.txt')
 
 # Read in lines of data file
 for line in ptm: 
+
+    # Check if line is a header line
+    if line.startswith('#'):
+ 
+        # For header lines: extract sample composition
+        if line.startswith('SAMPLE:',1):
+        
+            #Check for handled sample compositions and set flags
+            if line.split(':')[1].strip().startswith('10Pr'):
+                M_MOx = 140.90765*0.1 + 140.116*0.9 + 15.9994*2
+                known_composition_flag = True
+            
+            if line.split(':')[1].strip().startswith('LSM82'):
+                M_MOx = 138.91*0.8 + 87.62*0.2 + 54.938*1 + 15.9994*3
+                known_composition_flag = True
+                
+            if line.split(':')[1].strip().startswith('LuFeO3'):
+                M_MOx = 174.967*1 + 55.845*1 + 15.9994*3
+                known_composition_flag = True
+            
+        # For header lines: extract sample mass
+        elif line.strip().startswith('SAMPLE MASS',1):
+            if 'mg' in line:
+                mass = float(line.split(':')[1])
+                sample_mass_mg_flag = True
+                if mass != 0.: mass_given_flag = True
     
-    # Check for recognized formats
-    if line.startswith('#FORMAT:NETZSCH5'):
-        format_Netzsch5 = True
-    if line.startswith('#FORMAT:NETZSCH4'):
-        format_Netzsch4 = True                 
-                       
     # Check for list label line
-    if line.startswith('##'):
+    elif line.startswith('##'):
                            
         # Check if mass is in % or in mg
         if '%' in line: mass_pct_flag = True
         elif 'mg' in line: mass_mg_flag = True
         else: print('Unknown mass units')
-        
-    # Check if line is a header line
-    elif line.startswith('#'):
-                   
-        # For header lines: extract sample composition
-        if line.startswith('SAMPLE:',1):
-        
-            #Check for handled sample compositions and set flags
-            if line.split(':')[1].startswith('10Pr'):
-                M_MOx = 140.90765*0.1 + 140.116*0.9 + 15.9994*2
-                known_composition_flag = True
-            
-            if line.split(':')[1].startswith('LSM82'):
-                M_MOx = 138.91*0.8 + 87.62*0.2 + 54.938*1 + 15.9994*3
-                known_composition_flag = True
-            
-        # For header lines: extract sample mass
-        elif line.startswith('SAMPLE MASS',1):
-            if 'mg' in line:
-                mass = float(line.split(':')[1])
-                sample_mass_mg_flag = True
-                if mass != 0.: mass_given_flag = True
-                
+                    
     # Other lines are data list lines
     else:
         # Ignore empty lines
-        if line.strip():
-            # Formatting varies based on format version
-            if format_Netzsch4 == True:
-                # split line into fields - delimited by whitespace
-                fields = line.split()
-       
-                # add fields to data lists
-                temp += [float(fields[0])]
-                time += [float(fields[1])]
-                mass_loss += [float(fields[2])]
-                segment += [int(fields[3])]
-        
-            elif format_Netzsch5 == True:
-                # split line into fields - delimited by semicolons
-                fields = line.split(';')
-       
-                # add fields to data lists
-                temp += [float(fields[0])]
-                time += [float(fields[1])]
-                mass_loss += [float(fields[2])]
-                segment += [int(fields[6])]
+        line = line.strip()
+        if line:
+            # split line into fields - semicolon or whitespace delimited
+            fields = split('[;\s]+',line)
+                  
+            # add fields to data lists
+            temp += [float(fields[0])]
+            time += [float(fields[1])]
+            mass_loss += [float(fields[2])]
+            segment += [int(fields[-1])]
               
 # Request molar mass of composition if not determined from file       
 if not known_composition_flag:
@@ -430,7 +418,7 @@ if 1450 < eq_vals[-2,0] < 1550 and eq_vals[-1,0] < 850:
     print('\n\nLow temperature anneal step ignored.')
 
 # Handle special exception: recognize experiment with internal reference state
-if np.abs(eq_vals[0,0] - eq_vals[-1,0]) < 5:
+elif np.abs(eq_vals[0,0] - eq_vals[-1,0]) < 5:
     
     # Acknowledge special case found
     print('\n\nRecognized internal reference at %.0f \u00b0C.' %(eq_vals[0,0]))
