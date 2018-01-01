@@ -83,8 +83,16 @@ copyfile(filename+'.txt',savedir+'/'+filename+'.txt')
 # Read in lines of data file
 for line in ptm: 
 
+    # Check for list label line
+    if line.startswith('##'):
+                           
+        # Check if mass is in % or in mg
+        if '%' in line: mass_pct_flag = True
+        elif 'mg' in line: mass_mg_flag = True
+        else: print('Unknown mass units')
+    
     # Check if line is a header line
-    if line.startswith('#'):
+    elif line.startswith('#'):
  
         # For header lines: extract sample composition
         if line.startswith('SAMPLE:',1):
@@ -108,14 +116,6 @@ for line in ptm:
                 mass = float(line.split(':')[1])
                 sample_mass_mg_flag = True
                 if mass != 0.: mass_given_flag = True
-    
-    # Check for list label line
-    elif line.startswith('##'):
-                           
-        # Check if mass is in % or in mg
-        if '%' in line: mass_pct_flag = True
-        elif 'mg' in line: mass_mg_flag = True
-        else: print('Unknown mass units')
                     
     # Other lines are data list lines
     else:
@@ -417,8 +417,7 @@ if 1450 < eq_vals[-2,0] < 1550 and eq_vals[-1,0] < 850:
     print('\n\nLow temperature anneal step ignored.')
 
 # Handle special exception: recognize experiment with internal reference state
-elif np.abs(eq_vals[0,0] - eq_vals[-1,0]) < 5:
-    
+elif np.abs(eq_vals[0,0] - eq_vals[-1,0]) < 5:    
     # Acknowledge special case found
     print('\n\nRecognized internal reference at %.0f \u00b0C.' %(eq_vals[0,0]))
     
@@ -443,6 +442,7 @@ elif np.abs(eq_vals[0,0] - eq_vals[-1,0]) < 5:
 
     nonstoich_temp = np.zeros((eq_vals.shape[0],3))
 # Regular data handling
+
 else:
     nonstoich_temp = np.zeros((eq_vals.shape[0],3))
 
